@@ -2,11 +2,10 @@ using UnityEngine;
 
 public class RuntimeBootstrap : MonoBehaviour
 {
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Init()
     {
         GameObject go = new GameObject("Bootstrap");
-        DontDestroyOnLoad(go);
         go.AddComponent<RuntimeBootstrap>();
     }
 
