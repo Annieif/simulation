@@ -1,7 +1,7 @@
 class_name SplatRenderer
 extends MeshInstance3D
 
-var _voxel_size: float = 0.5
+var _voxel_size: float = 0.1
 
 func load_ply(path: String, scale_mult: float = 1.0):
 	var data = _read_ply(path)
