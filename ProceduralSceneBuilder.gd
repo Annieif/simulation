@@ -303,21 +303,20 @@ func _generate_screen_wall():
 	sfi_mi.position = Vector3(0, 3, -14.65)
 	add_child(sfi_mi)
 	
-	var screen_mesh = PlaneMesh.new()
-	screen_mesh.size = Vector2(9, 4.5)
-	var screen_mat = StandardMaterial3D.new()
-	screen_mat.albedo_color = Color(0.08, 0.15, 0.25)
-	screen_mat.emission_enabled = true
-	screen_mat.emission = Color(0.05, 0.2, 0.4)
-	screen_mat.emission_energy_multiplier = 1.5
-	screen_mat.metallic = 0.1
-	screen_mat.roughness = 0.3
-	screen_mesh.material = screen_mat
-	var screen_mi = MeshInstance3D.new()
-	screen_mi.mesh = screen_mesh
-	screen_mi.position = Vector3(0, 3, -14.5)
-	screen_mi.rotation = Vector3(deg_to_rad(90), 0, 0)
-	add_child(screen_mi)
+	var glass_mesh = BoxMesh.new()
+	glass_mesh.size = Vector3(9, 4.5, 0.08)
+	var glass_mat = StandardMaterial3D.new()
+	glass_mat.albedo_color = Color(0.1, 0.15, 0.2)
+	glass_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass_mat.albedo_color.a = 0.35
+	glass_mat.metallic = 0.2
+	glass_mat.roughness = 0.15
+	glass_mat.uv1_scale = Vector3(1, 1, 1)
+	glass_mesh.material = glass_mat
+	var glass_mi = MeshInstance3D.new()
+	glass_mi.mesh = glass_mesh
+	glass_mi.position = Vector3(0, 3, -14.5)
+	add_child(glass_mi)
 	
 	for i in range(-6, 7, 6):
 		for j in range(0, 6, 3):
