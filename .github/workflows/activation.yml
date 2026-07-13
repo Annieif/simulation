@@ -1,37 +1,66 @@
-name: Generate Activation File
+name: Generate Unity Activation File
 
 on:
   workflow_dispatch:
 
 jobs:
-  generate-alf:
+  generate-activation:
     name: Generate .alf Activation File
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Activate Unity Personal License
-        uses: game-ci/unity-activate@v2
-        env:
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          unityVersion: 2022.3.45f1
-
-      - name: Generate Manual Activation File
+      - name: Pull Unity Docker Image
         run: |
-          # Find the Unity executable inside the Docker container
-          # The activation action should have created a container with Unity
-          echo "Unity activation completed. Finding .ulf file..."
-          find / -name "*.ulf" -type f 2>/dev/null | head -5 || true
-          find / -name "*.alf" -type f 2>/dev/null | head -5 || true
-          ls -la ./*.ulf 2>/dev/null || echo "No .ulf files in workspace"
-          ls -la ./*.alf 2>/dev/null || echo "No .alf files in workspace"
+          IMAGE="unityci/editor:ubuntu-2022.3.45f1-linux-il2cpp-3"
+          echo "Pulling $IMAGE ..."
+          docker pull "$IMAGE"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Upload License File
+      - name: Generate Activation File
+        run: |
+          mkdir -p activation
+          docker run --rm \
+            -v "$(pwd)/activation:/activation" \
+            -w /activation \
+            "${{ env.IMAGE }}" \
+            /opt/Unity/Editor/Unity \
+            -batchmode \
+            -nographics \
+            -logFile /activation/activation.log \
+            -createManualActivationFile \
+            -quit
+          echo "---"
+          echo "Activation log:"
+          cat activation/activation.log 2>/dev/null || echo "No log file generated"
+          echo "---"
+          echo "Files in activation directory:"
+          ls -la activation/
+
+      - name: Upload Activation File
         uses: actions/upload-artifact@v4
         with:
-          name: UnityLicenseFile
-          path: ./*.ulf
-          if-no-files-found: warn
+          name: Unity_v2022.3.45f1.alf
+          path: activation/*.alf
+          if-no-files-found: error
+
+      - name: Show Instructions
+        if: always()
+        run: |
+          echo ""
+          echo "================================================"
+          echo "  NEXT STEPS:"
+          echo "================================================"
+          echo ""
+          echo "1. Download the 'Unity_v2022.3.45f1.alf' artifact from this workflow run"
+          echo ""
+          echo "2. Go to: https://license.unity3d.com/manual"
+          echo ""
+          echo "3. Upload the .alf file and download the .ulf license file"
+          echo ""
+          echo "4. Get the content of the .ulf file:"
+          echo "   cat <your-license-file>.ulf"
+          echo ""
+          echo "5. Add it as a GitHub Secret named UNITY_LICENSE:"
+          echo "   https://github.com/Annieif/simulation/settings/secrets/actions"
+          echo ""
+          echo "6. Re-run the Build workflow"
+          echo "================================================"
