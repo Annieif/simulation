@@ -1,22 +1,45 @@
 class_name SplatRenderer
 extends MeshInstance3D
 
-func load_ply(path: String, scale_multiplier: float = 1.0):
+func load_ply(path: String, scale_mult: float = 1.0):
 	var data = _read_ply(path)
-	var mesh = _build_mesh(data, scale_multiplier)
+	if data.is_empty() or data["count"] == 0:
+		push_error("SplatRenderer: No data loaded from " + path)
+		return
+	
+	# Debug: print first 5 vertex positions and colors
+	var count = data["count"]
+	var pos = data["positions"]
+	var col = data["colors"]
+	print("SplatRenderer: Loaded ", count, " vertices")
+	for i in range(min(5, count)):
+		print("  Vertex ", i, ": pos=", pos[i], " color=", col[i])
+	
+	# Calculate bounds
+	var min_pos = Vector3(INF, INF, INF)
+	var max_pos = Vector3(-INF, -INF, -INF)
+	for i in range(count):
+		min_pos = min_pos.min(pos[i])
+		max_pos = max_pos.max(pos[i])
+	print("SplatRenderer: Bounds: min=", min_pos, " max=", max_pos)
+	print("SplatRenderer: Center: ", (min_pos + max_pos) * 0.5)
+	print("SplatRenderer: Size: ", max_pos - min_pos)
+	
+	var mesh = _build_mesh(data)
 	self.mesh = mesh
 	
 	var mat = ShaderMaterial.new()
 	mat.shader = preload("res://splat_shader.gdshader")
-	mat.set_shader_parameter("global_scale", scale_multiplier)
+	mat.set_shader_parameter("point_size", 3.0 * scale_mult)
 	material_override = mat
 
 func _read_ply(path: String) -> Dictionary:
 	var file = FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		push_error("Failed to open PLY file: " + path)
+		push_error("SplatRenderer: Failed to open PLY file: " + path)
 		return {}
 	
+	# Read header
 	var header = ""
 	while true:
 		var line = file.get_line()
@@ -24,83 +47,74 @@ func _read_ply(path: String) -> Dictionary:
 		if line.strip_edges() == "end_header":
 			break
 	
+	# Parse vertex count
 	var vertex_count = 0
 	for line in header.split("\n"):
 		line = line.strip_edges()
 		if line.begins_with("element vertex"):
-			vertex_count = int(line.split()[2])
+			var parts = line.split()
+			if parts.size() >= 3:
+				vertex_count = int(parts[2])
 	
-	print("PLY vertex count: ", vertex_count)
+	if vertex_count == 0:
+		push_error("SplatRenderer: No vertices found in PLY header")
+		return {}
 	
+	print("SplatRenderer: Reading ", vertex_count, " vertices from ", path)
+	
+	# Pre-allocate arrays
 	var positions = PackedVector3Array()
 	var colors = PackedColorArray()
-	var sizes = PackedFloat32Array()
 	positions.resize(vertex_count)
 	colors.resize(vertex_count)
-	sizes.resize(vertex_count)
 	
+	# Read binary data (15 floats per vertex)
 	for i in range(vertex_count):
 		var x = file.get_float()
 		var y = file.get_float()
 		var z = file.get_float()
-		var r_sh = file.get_float()
-		var g_sh = file.get_float()
-		var b_sh = file.get_float()
+		var r = file.get_float()
+		var g = file.get_float()
+		var b = file.get_float()
 		var opacity = file.get_float()
 		var s0 = file.get_float()
 		var s1 = file.get_float()
 		var s2 = file.get_float()
-		var q0 = file.get_float()
-		var q1 = file.get_float()
-		var q2 = file.get_float()
-		var q3 = file.get_float()
+		var _q0 = file.get_float()
+		var _q1 = file.get_float()
+		var _q2 = file.get_float()
+		var _q3 = file.get_float()
 		
 		positions[i] = Vector3(x, y, z)
-		colors[i] = Color(
-			clamp(r_sh + 0.5, 0.0, 1.0),
-			clamp(g_sh + 0.5, 0.0, 1.0),
-			clamp(b_sh + 0.5, 0.0, 1.0),
-			clamp(1.0 / (1.0 + exp(-opacity)), 0.0, 1.0)
-		)
-		var avg_scale = exp((s0 + s1 + s2) / 3.0)
-		sizes[i] = avg_scale
+		
+		# SH DC coefficient to RGB
+		# Standard formula: color = 0.5 + SH * 0.28209479177387814
+		var cr = clamp(0.5 + r * 0.28209, 0.0, 1.0)
+		var cg = clamp(0.5 + g * 0.28209, 0.0, 1.0)
+		var cb = clamp(0.5 + b * 0.28209, 0.0, 1.0)
+		# Opacity: sigmoid
+		var ca = clamp(1.0 / (1.0 + exp(-opacity)), 0.0, 1.0)
+		
+		colors[i] = Color(cr, cg, cb, ca)
 	
 	file.close()
 	
 	return {
 		"positions": positions,
 		"colors": colors,
-		"sizes": sizes,
 		"count": vertex_count
 	}
 
-func _build_mesh(data: Dictionary, scale_mult: float) -> Mesh:
+func _build_mesh(data: Dictionary) -> Mesh:
 	var positions = data["positions"]
 	var colors = data["colors"]
-	var sizes = data["sizes"]
 	var count = data["count"]
 	
 	var st = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	
-	var corners = [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]
-	var tri_indices = [0, 1, 2, 0, 2, 3]
+	st.begin(Mesh.PRIMITIVE_POINTS)
 	
 	for i in range(count):
-		var center = positions[i]
-		var color = colors[i]
-		var size = sizes[i]
-		
-		for ci in 4:
-			var corner = corners[ci]
-			st.set_uv(corner)
-			st.set_color(color)
-			st.set_custom(0, PackedFloat32Array([size, 0.0, 0.0, 0.0]))
-			st.add_vertex(center)
-		
-		for ti in 6:
-			st.add_index(i * 4 + tri_indices[ti])
+		st.set_color(colors[i])
+		st.add_vertex(positions[i])
 	
-	st.index()
-	st.generate_normals()
 	return st.commit()
