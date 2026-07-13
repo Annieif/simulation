@@ -1,7 +1,6 @@
 extends Node3D
 
 func _ready():
-	# 简单的环境光
 	var env = Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.1, 0.1, 0.12)
@@ -12,53 +11,63 @@ func _ready():
 	world_env.environment = env
 	add_child(world_env)
 	
-	# 方向光
 	var light = DirectionalLight3D.new()
 	light.light_energy = 0.5
 	light.position = Vector3(0, 10, 5)
 	light.rotation = Vector3(deg_to_rad(50), deg_to_rad(20), 0)
 	add_child(light)
 	
-	# 地板（让玩家有东西站立）
-	var floor_mesh = BoxMesh.new()
-	floor_mesh.size = Vector3(100, 0.1, 100)
-	var floor_mat = StandardMaterial3D.new()
-	floor_mat.albedo_color = Color(0.2, 0.2, 0.22)
-	floor_mat.metallic = 0.5
-	floor_mat.roughness = 0.5
-	floor_mesh.material = floor_mat
-	var floor_mi = MeshInstance3D.new()
-	floor_mi.mesh = floor_mesh
-	floor_mi.position = Vector3(0, -0.1, 0)
-	add_child(floor_mi)
-	
-	var floor_col = CollisionShape3D.new()
-	var floor_shape = BoxShape3D.new()
-	floor_shape.size = Vector3(100, 0.1, 100)
-	floor_col.shape = floor_shape
-	var floor_body = StaticBody3D.new()
-	floor_body.position = Vector3(0, -0.1, 0)
-	floor_body.add_child(floor_col)
-	add_child(floor_body)
-	
-	# 测试立方体（验证渲染是否正常）
-	var test_mesh = BoxMesh.new()
-	test_mesh.size = Vector3(1, 1, 1)
-	var test_mat = StandardMaterial3D.new()
-	test_mat.albedo_color = Color(1.0, 0.0, 0.0)
-	test_mesh.material = test_mat
-	var test_mi = MeshInstance3D.new()
-	test_mi.mesh = test_mesh
-	test_mi.position = Vector3(3, 0.5, 0)
-	add_child(test_mi)
-	
-	# 加载混元生成的 PLY 场景
 	var splat = SplatRenderer.new()
 	splat.load_ply("res://a.ply", 1.0)
 	add_child(splat)
 	
-	# 加载玩家场景
+	await get_tree().idle_frame
+	
+	var min_pos = Vector3(INF, INF, INF)
+	var max_pos = Vector3(-INF, -INF, -INF)
+	var mesh = splat.mesh
+	if mesh:
+		var surface_count = mesh.get_surface_count()
+		for s in range(surface_count):
+			var positions = mesh.get_surface_arrays(s)[0]
+			for p in positions:
+				min_pos = min_pos.min(p + splat.position)
+				max_pos = max_pos.max(p + splat.position)
+	
+	var center = (min_pos + max_pos) * 0.5
+	var size = max_pos - min_pos
+	
+	# Floor collision
+	var floor_body = StaticBody3D.new()
+	floor_body.position = Vector3(center.x, min_pos.y, center.z)
+	var floor_col = CollisionShape3D.new()
+	var floor_shape = BoxShape3D.new()
+	floor_shape.size = Vector3(size.x, 0.2, size.z)
+	floor_col.shape = floor_shape
+	floor_body.add_child(floor_col)
+	add_child(floor_body)
+	
+	# Boundary walls (prevent falling off)
+	var wall_thickness = 0.5
+	var walls = [
+		(Vector3(center.x, center.y, min_pos.z - wall_thickness * 0.5), Vector3(size.x, size.y, wall_thickness)),
+		(Vector3(center.x, center.y, max_pos.z + wall_thickness * 0.5), Vector3(size.x, size.y, wall_thickness)),
+		(Vector3(min_pos.x - wall_thickness * 0.5, center.y, center.z), Vector3(wall_thickness, size.y, size.z)),
+		(Vector3(max_pos.x + wall_thickness * 0.5, center.y, center.z), Vector3(wall_thickness, size.y, size.z)),
+	]
+	
+	for wall_pos, wall_size in walls:
+		var wall_body = StaticBody3D.new()
+		wall_body.position = wall_pos
+		var wall_col = CollisionShape3D.new()
+		var wall_shape = BoxShape3D.new()
+		wall_shape.size = wall_size
+		wall_col.shape = wall_shape
+		wall_body.add_child(wall_col)
+		add_child(wall_body)
+	
+	# Place player at center, 2 units above floor
 	var player_scene = preload("res://Player.tscn")
 	var player = player_scene.instantiate()
-	player.position = Vector3(0, 2, 0)
+	player.position = Vector3(center.x, min_pos.y + 2.0, center.z)
 	add_child(player)
