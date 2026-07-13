@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode unshaded, cull_disabled, depth_draw_alpha_prepass;
+render_mode unshaded, cull_disabled;
 
 uniform float point_size: hint_range(0.5, 20.0) = 3.0;
 
