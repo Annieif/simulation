@@ -38,5 +38,5 @@ func _ready():
 	
 	var player_scene = preload("res://Player.tscn")
 	var player = player_scene.instantiate()
-	player.position = Vector3(center.x, max_pos.y + 5.0, center.z + (max_pos.z - min_pos.z) * 0.4)
+	player.position = Vector3(center.x, center.y, center.z)
 	add_child(player)
