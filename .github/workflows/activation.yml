@@ -22,7 +22,7 @@ jobs:
             -v "$(pwd)/activation:/activation" \
             -w /activation \
             "${{ env.IMAGE }}" \
-            /opt/Unity/Editor/Unity \
+            unity-editor \
             -batchmode \
             -nographics \
             -logFile /activation/activation.log \
