@@ -1,0 +1,26 @@
+name: Activation
+
+on:
+  workflow_dispatch:
+    inputs:
+      unityVersion:
+        description: 'Unity Version'
+        required: true
+        default: '2022.3.45f1'
+
+jobs:
+  activation:
+    name: Request Unity Activation File
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request Activation File
+        id: requestActivationFile
+        uses: game-ci/unity-request-activation-file@v3
+        with:
+          unityVersion: ${{ inputs.unityVersion }}
+
+      - name: Upload Activation File
+        uses: actions/upload-artifact@v4
+        with:
+          name: UnityActivationFile
+          path: ${{ steps.requestActivationFile.outputs.manualActivationFile }}
