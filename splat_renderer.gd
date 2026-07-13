@@ -25,12 +25,27 @@ func load_ply(path: String, scale_mult: float = 1.0):
 	print("SplatRenderer: Center: ", (min_pos + max_pos) * 0.5)
 	print("SplatRenderer: Size: ", max_pos - min_pos)
 	
+	# Add debug cubes at bounds corners
+	var debug_cube = BoxMesh.new()
+	debug_cube.size = Vector3(0.5, 0.5, 0.5)
+	var debug_mat = StandardMaterial3D.new()
+	debug_mat.albedo_color = Color(0, 1, 0)
+	debug_cube.material = debug_mat
+	
+	var corners = [min_pos, max_pos, Vector3(min_pos.x, min_pos.y, max_pos.z), Vector3(max_pos.x, min_pos.y, min_pos.z), Vector3(min_pos.x, max_pos.y, min_pos.z), Vector3(max_pos.x, max_pos.y, min_pos.z), Vector3(min_pos.x, max_pos.y, max_pos.z)]
+	for corner in corners:
+		var mi = MeshInstance3D.new()
+		mi.mesh = debug_cube
+		mi.position = corner
+		add_child(mi)
+	
 	var mesh = _build_mesh(data)
 	self.mesh = mesh
 	
 	var mat = ShaderMaterial.new()
 	mat.shader = preload("res://splat_shader.gdshader")
-	mat.set_shader_parameter("point_size", 3.0 * scale_mult)
+	mat.set_shader_parameter("point_size", 15.0 * scale_mult)
+	mat.set_shader_parameter("brightness", 2.0)
 	material_override = mat
 
 func _read_ply(path: String) -> Dictionary:
