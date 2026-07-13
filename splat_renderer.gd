@@ -49,8 +49,8 @@ func load_ply(path: String, scale_mult: float = 1.0):
 	
 	var mat = ShaderMaterial.new()
 	mat.shader = preload("res://splat_shader.gdshader")
-	mat.set_shader_parameter("point_size", 15.0 * scale_mult)
-	mat.set_shader_parameter("brightness", 2.0)
+	mat.set_shader_parameter("point_size", 5.0 * scale_mult)
+	mat.set_shader_parameter("brightness", 1.5)
 	material_override = mat
 	
 	_build_voxel_collisions(pos, min_pos, max_pos)
@@ -76,7 +76,7 @@ func _build_voxel_collisions(positions: PackedVector3Array, min_pos: Vector3, ma
 	
 	var blocks = []
 	for key in voxel_map:
-		if voxel_map[key] >= 5:
+		if voxel_map[key] >= 10:
 			var world_x = min_pos.x + key.x * _voxel_size + _voxel_size * 0.5
 			var world_y = min_pos.y + key.y * _voxel_size + _voxel_size * 0.5
 			var world_z = min_pos.z + key.z * _voxel_size + _voxel_size * 0.5
