@@ -3,7 +3,12 @@ config_version=5
 [application]
 config/name="Simulation"
 run/main_scene="res://Main.tscn"
-config/features=PortalVK4
+config/features=PackedStringArray("4.3")
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/mouse_capture_mode=2
 
 [input]
 move_forward={
@@ -37,11 +42,6 @@ sprint={
 ]
 }
 
-[display]
-window/size/viewport_width=1280
-window/size/viewport_height=720
-mouse_capture_mode=2
-
 [rendering]
-renderer/rendering_method="mobile"
+renderer/rendering_method="forward_plus"
 anti_aliasing/quality/msaa_3d=2
