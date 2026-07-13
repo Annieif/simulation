@@ -35,38 +35,7 @@ func _ready():
 				max_pos = max_pos.max(p + splat.position)
 	
 	var center = (min_pos + max_pos) * 0.5
-	var size = max_pos - min_pos
 	
-	# Floor collision
-	var floor_body = StaticBody3D.new()
-	floor_body.position = Vector3(center.x, min_pos.y, center.z)
-	var floor_col = CollisionShape3D.new()
-	var floor_shape = BoxShape3D.new()
-	floor_shape.size = Vector3(size.x, 0.2, size.z)
-	floor_col.shape = floor_shape
-	floor_body.add_child(floor_col)
-	add_child(floor_body)
-	
-	# Boundary walls (prevent falling off)
-	var wall_thickness = 0.5
-	var walls = [
-		(Vector3(center.x, center.y, min_pos.z - wall_thickness * 0.5), Vector3(size.x, size.y, wall_thickness)),
-		(Vector3(center.x, center.y, max_pos.z + wall_thickness * 0.5), Vector3(size.x, size.y, wall_thickness)),
-		(Vector3(min_pos.x - wall_thickness * 0.5, center.y, center.z), Vector3(wall_thickness, size.y, size.z)),
-		(Vector3(max_pos.x + wall_thickness * 0.5, center.y, center.z), Vector3(wall_thickness, size.y, size.z)),
-	]
-	
-	for wall_pos, wall_size in walls:
-		var wall_body = StaticBody3D.new()
-		wall_body.position = wall_pos
-		var wall_col = CollisionShape3D.new()
-		var wall_shape = BoxShape3D.new()
-		wall_shape.size = wall_size
-		wall_col.shape = wall_shape
-		wall_body.add_child(wall_col)
-		add_child(wall_body)
-	
-	# Place player at center, 2 units above floor
 	var player_scene = preload("res://Player.tscn")
 	var player = player_scene.instantiate()
 	player.position = Vector3(center.x, min_pos.y + 2.0, center.z)
