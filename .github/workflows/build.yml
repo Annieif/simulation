@@ -1,4 +1,4 @@
-name: Build Unity Project
+name: Build Godot Project
 
 on:
   push:
@@ -16,30 +16,40 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          lfs: true
 
-      - name: Cache Library
-        uses: actions/cache@v4
-        with:
-          path: Library
-          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: |
-            Library-
+      - name: Download Godot Editor
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+          unzip Godot_v4.3-stable_linux.x86_64.zip
+          mv Godot_v4.3-stable_linux.x86_64 godot
+          chmod +x godot
 
-      - name: Build Unity Project
-        uses: game-ci/unity-builder@v4
-        env:
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          unityVersion: 2022.3.45f1
-          targetPlatform: StandaloneWindows64
-          buildName: Simulation
-          customParameters: -batchmode -nographics
+      - name: Download Export Templates
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
+          unzip Godot_v4.3-stable_export_templates.tpz
+          mv templates/* ~/.local/share/godot/export_templates/4.3.stable/
+
+      - name: Import Project (Generate .godot cache)
+        run: |
+          ./godot --headless --import --editor 2>&1 || true
+
+      - name: Build Windows Executable
+        run: |
+          mkdir -p build
+          ./godot --headless --export-release "Windows Desktop" build/Simulation.exe 2>&1
+
+      - name: Verify build output
+        run: |
+          ls -la build/
+          if [ ! -f build/Simulation.exe ]; then
+            echo "ERROR: Build output not found!"
+            exit 1
+          fi
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Simulation-Windows64
-          path: build/StandaloneWindows64
+          path: build/
