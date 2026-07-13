@@ -7,43 +7,31 @@ jobs:
   generate-alf:
     name: Generate .alf Activation File
     runs-on: ubuntu-latest
-    container:
-      image: unityci/editor:ubuntu-2022.3.45f1-base-1.0.0
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Activate Unity Personal License
+        uses: game-ci/unity-activate@v2
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: 2022.3.45f1
+
       - name: Generate Manual Activation File
         run: |
-          # Try to find Unity executable
-          UNITY_PATH=""
-          for path in \
-            /opt/Unity/Editor/Unity \
-            /opt/unity/Editor/Unity; do
-            if [ -f "$path" ]; then
-              UNITY_PATH="$path"
-              break
-            fi
-          done
+          # Find the Unity executable inside the Docker container
+          # The activation action should have created a container with Unity
+          echo "Unity activation completed. Finding .ulf file..."
+          find / -name "*.ulf" -type f 2>/dev/null | head -5 || true
+          find / -name "*.alf" -type f 2>/dev/null | head -5 || true
+          ls -la ./*.ulf 2>/dev/null || echo "No .ulf files in workspace"
+          ls -la ./*.alf 2>/dev/null || echo "No .alf files in workspace"
 
-          if [ -z "$UNITY_PATH" ]; then
-            echo "Unity executable not found at expected paths."
-            echo "Searching for Unity..."
-            find / -name "Unity" -type f -executable 2>/dev/null | head -5
-            exit 1
-          fi
-
-          echo "Found Unity at: $UNITY_PATH"
-          $UNITY_PATH \
-            -batchmode \
-            -nographics \
-            -logFile /tmp/unity-activation.log \
-            -createManualActivationFile \
-            -quit
-
-      - name: Show activation log
-        run: cat /tmp/unity-activation.log
-
-      - name: Upload Activation File
+      - name: Upload License File
         uses: actions/upload-artifact@v4
         with:
-          name: UnityActivationFile
-          path: ./*.alf
+          name: UnityLicenseFile
+          path: ./*.ulf
           if-no-files-found: warn
