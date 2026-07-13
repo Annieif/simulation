@@ -36,7 +36,28 @@ func _ready():
 	
 	var center = (min_pos + max_pos) * 0.5
 	
+	# Simple floor collision at bottom of scene
+	var floor_body = StaticBody3D.new()
+	floor_body.position = Vector3(center.x, min_pos.y - 0.5, center.z)
+	var floor_col = CollisionShape3D.new()
+	var floor_shape = BoxShape3D.new()
+	floor_shape.size = Vector3((max_pos.x - min_pos.x) * 1.5, 1.0, (max_pos.z - min_pos.z) * 1.5)
+	floor_col.shape = floor_shape
+	floor_body.add_child(floor_col)
+	add_child(floor_body)
+	
+	# Test cube visible in scene
+	var test_mesh = BoxMesh.new()
+	test_mesh.size = Vector3(2, 2, 2)
+	var test_mat = StandardMaterial3D.new()
+	test_mat.albedo_color = Color(1, 0, 0)
+	test_mesh.material = test_mat
+	var test_mi = MeshInstance3D.new()
+	test_mi.mesh = test_mesh
+	test_mi.position = Vector3(center.x, center.y, center.z)
+	add_child(test_mi)
+	
 	var player_scene = preload("res://Player.tscn")
 	var player = player_scene.instantiate()
-	player.position = Vector3(center.x, center.y, center.z)
+	player.position = Vector3(center.x, min_pos.y + 2.0, center.z)
 	add_child(player)

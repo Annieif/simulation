@@ -1,8 +1,6 @@
 class_name SplatRenderer
 extends MeshInstance3D
 
-var _voxel_size: float = 0.1
-
 func load_ply(path: String, scale_mult: float = 1.0):
 	var data = _read_ply(path)
 	if data == null or data.is_empty() or data["count"] == 0:
@@ -19,29 +17,6 @@ func load_ply(path: String, scale_mult: float = 1.0):
 		min_pos = min_pos.min(pos[i])
 		max_pos = max_pos.max(pos[i])
 	var center = (min_pos + max_pos) * 0.5
-	var size = max_pos - min_pos
-	
-	var box_mesh = BoxMesh.new()
-	box_mesh.size = size
-	var box_mat = StandardMaterial3D.new()
-	box_mat.albedo_color = Color(0, 1, 0)
-	box_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	box_mat.albedo_color.a = 0.3
-	box_mesh.material = box_mat
-	var box_mi = MeshInstance3D.new()
-	box_mi.mesh = box_mesh
-	box_mi.position = center
-	add_child(box_mi)
-	
-	var center_cube = BoxMesh.new()
-	center_cube.size = Vector3(1, 1, 1)
-	var center_mat = StandardMaterial3D.new()
-	center_mat.albedo_color = Color(1, 1, 0)
-	center_cube.material = center_mat
-	var center_mi = MeshInstance3D.new()
-	center_mi.mesh = center_cube
-	center_mi.position = center
-	add_child(center_mi)
 	
 	var mesh = _build_mesh(data)
 	self.mesh = mesh
@@ -49,85 +24,9 @@ func load_ply(path: String, scale_mult: float = 1.0):
 	
 	var mat = ShaderMaterial.new()
 	mat.shader = preload("res://splat_shader.gdshader")
-	mat.set_shader_parameter("point_size", 5.0 * scale_mult)
-	mat.set_shader_parameter("brightness", 1.5)
+	mat.set_shader_parameter("point_size", 20.0)
+	mat.set_shader_parameter("brightness", 3.0)
 	material_override = mat
-	
-	_build_voxel_collisions(pos, min_pos, max_pos)
-
-func _build_voxel_collisions(positions: PackedVector3Array, min_pos: Vector3, max_pos: Vector3):
-	var voxel_count = 0
-	var voxel_map = {}
-	
-	for pos in positions:
-		var vx = int(floor((pos.x - min_pos.x) / _voxel_size))
-		var vy = int(floor((pos.y - min_pos.y) / _voxel_size))
-		var vz = int(floor((pos.z - min_pos.z) / _voxel_size))
-		var key = Vector3(vx, vy, vz)
-		if key not in voxel_map:
-			voxel_map[key] = 0
-		voxel_map[key] += 1
-	
-	var min_voxel = Vector3(INF, INF, INF)
-	var max_voxel = Vector3(-INF, -INF, -INF)
-	for key in voxel_map:
-		min_voxel = min_voxel.min(key)
-		max_voxel = max_voxel.max(key)
-	
-	var blocks = []
-	for key in voxel_map:
-		if voxel_map[key] >= 10:
-			var world_x = min_pos.x + key.x * _voxel_size + _voxel_size * 0.5
-			var world_y = min_pos.y + key.y * _voxel_size + _voxel_size * 0.5
-			var world_z = min_pos.z + key.z * _voxel_size + _voxel_size * 0.5
-			blocks.append(Vector3(world_x, world_y, world_z))
-	
-	var body = StaticBody3D.new()
-	body.name = "SplatCollision"
-	
-	var merged_mesh = Mesh.new()
-	var st = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	
-	for block_pos in blocks:
-		var half = _voxel_size * 0.5
-		var corners = [
-			Vector3(-half, -half, -half),
-			Vector3(half, -half, -half),
-			Vector3(half, half, -half),
-			Vector3(-half, half, -half),
-			Vector3(-half, -half, half),
-			Vector3(half, -half, half),
-			Vector3(half, half, half),
-			Vector3(-half, half, half),
-		]
-		var faces = [
-			[0, 1, 2, 3],
-			[4, 5, 6, 7],
-			[0, 1, 5, 4],
-			[2, 3, 7, 6],
-			[0, 3, 7, 4],
-			[1, 2, 6, 5],
-		]
-		
-		for face in faces:
-			st.add_vertex(corners[face[0]] + block_pos)
-			st.add_vertex(corners[face[1]] + block_pos)
-			st.add_vertex(corners[face[2]] + block_pos)
-			st.add_vertex(corners[face[0]] + block_pos)
-			st.add_vertex(corners[face[2]] + block_pos)
-			st.add_vertex(corners[face[3]] + block_pos)
-	
-	st.index()
-	merged_mesh = st.commit()
-	
-	var shape = ConcavePolygonShape3D.new()
-	shape.set_mesh(merged_mesh)
-	
-	var col_shape = CollisionShape3D.new()
-	col_shape.shape = shape
-	body.add_child(col_shape)
-	add_child(body)
 
 func _read_ply(path: String):
 	var file = FileAccess.open(path, FileAccess.READ)
@@ -139,7 +38,6 @@ func _read_ply(path: String):
 		file.close()
 		return null
 	
-	var format = ""
 	var vertex_count = 0
 	var properties = []
 	
@@ -147,9 +45,7 @@ func _read_ply(path: String):
 		var line = file.get_line()
 		if line.strip_edges() == "end_header":
 			break
-		if line.begins_with("format"):
-			format = line.strip_edges()
-		elif line.begins_with("element vertex"):
+		if line.begins_with("element vertex"):
 			var parts = line.split(" ")
 			if parts.size() >= 3:
 				vertex_count = int(parts[2])
